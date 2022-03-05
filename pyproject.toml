@@ -23,6 +23,12 @@ classifiers = [
 requires-python = ">=3.5"
 license = {"file" = "LICENSE"}
 dynamic = ["version", "description"]
+dependencies = [
+    "fasttext",
+    "pandas",
+    "rich",
+    "click"
+]
 
 [tool.flit.module]
 name = "challenge"
@@ -37,6 +43,9 @@ dev = [
     "pytest",
     "pre-commit"
 ]
+
+[project.scripts]
+kili = "challenge.cli:main "
 
 [tool.isort]
 profile = "black"
