@@ -27,7 +27,8 @@ dependencies = [
     "fasttext",
     "pandas",
     "rich",
-    "click"
+    "click",
+    "requests"
 ]
 
 [tool.flit.module]
@@ -41,7 +42,8 @@ tracker = "https://github.com/gbelouze/challenge/issues"
 dev = [
     "mypy",
     "pytest",
-    "pre-commit"
+    "pre-commit",
+    "toml"
 ]
 
 [project.scripts]
