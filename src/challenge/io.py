@@ -3,12 +3,16 @@ import logging
 from pathlib import Path
 
 import pandas as pd  # type: ignore
+import numpy as np
+
+from typing import List
 
 log = logging.getLogger("challenge")
 
 base_dir = Path(__file__).resolve().parents[2]
 data_dir = base_dir / "data"
 download_dir = data_dir / "downloads"
+xy_dir = data_dir / "xy"
 submission_dir = data_dir / "submissions"
 default_x = data_dir / "raw" / "x_baseline.csv"
 default_y = data_dir / "raw" / "y_baseline.csv"
@@ -95,15 +99,24 @@ def dumpy(path: Path, y: pd.DataFrame):
 
 
 @ovewrite_guard
-def dumpxy(path: Path, xy: pd.DataFrame):
+def dumpxy(path: Path, xy: pd.DataFrame, file_kind="xy"):
     path.parent.mkdir(parents=True, exist_ok=True)
     df = pd.DataFrame()
     df["review"] = xy.x
     df["category"] = xy.y
     df.to_csv(path, sep=",", index=True)
     log.info(
-        f"Wrote submission file to [magenta]{repr(path)}[/]", extra={"markup": True}
+        f"Wrote {file_kind} file to [magenta]{repr(path)}[/]", extra={"markup": True}
     )
+
+
+def submit(path: Path, xys: List[pd.DataFrame], *args, **kwargs):
+    xy = pd.concat(xys, ignore_index=True)
+    if len(xy) > 20_000:
+        xy = xy.iloc[np.random.choice(np.arange(len(xy)), size=20_000, replace=False)]
+        log.debug("Trimed data to length [cyan bold]20_000[/]", extra={"markup": True})
+
+    dumpxy(path, xy, *args, file_kind="submission", **kwargs)
 
 
 def fasttext_input(xy: pd.DataFrame):
