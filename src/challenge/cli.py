@@ -57,12 +57,15 @@ def submit(xys, out, overwrite):
 @main.command()
 @click.argument("train", type=click.Path(exists=True, path_type=Path))
 @click.argument("test", type=click.Path(exists=True, path_type=Path))
-def eval(train, test):
+@click.option("-m", "--show-mistakes", default=0, help="Show examples of mistakes.")
+def eval(train, test, show_mistakes):
     """Train fasttext on a submission file TRAIN and evaluate it on TEST"""
     xy_train = io.loadxy(train)
     xy_test = io.loadxy(test)
     model = tr.train(xy_train)
     tr.test(model, xy_test)
+    if show_mistakes:
+        tr.mistakes(model, xy_test, k=show_mistakes)
 
 
 @main.command()
