@@ -4,6 +4,8 @@ from pathlib import Path
 import challenge.download as dwn
 import challenge.io as io
 import challenge.train as tr
+import challenge.denoise as denoise_
+
 import click
 from rich import print as rprint
 from rich.logging import RichHandler
@@ -94,6 +96,17 @@ def info(name, all):
 
 
 @main.command()
+@click.argument("xy", type=click.Path(exists=True, path_type=Path))
+@click.argument("out", type=click.Path(path_type=Path))
+@click.option("--overwrite/--no-overwrite", default=False)
+def denoise(xy, out, overwrite):
+    """Clean file [XY] and save it to [OUT]"""
+    xy = io.loadxy(xy)
+    xy = denoise_.remove_non_ascii(xy)
+    xy = denoise_.remove_bad_tokens(xy, io.data_dir / "bad_tokens.json")
+    xy = denoise_.remove_non_english(xy)
+    io.dumpxy(out, xy, overwrite=overwrite)
+
 @click.option(
     "--name", type=click.Choice(list(dwn.all_downloaders.keys()), case_sensitive=False)
 )

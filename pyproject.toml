@@ -20,7 +20,8 @@ classifiers = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
 ]
-requires-python = ">=3.5"
+# we need python 3.7 to have dict remember insertion order
+requires-python = ">=3.7"
 license = {"file" = "LICENSE"}
 dynamic = ["version", "description"]
 dependencies = [
@@ -28,7 +29,12 @@ dependencies = [
     "pandas",
     "rich",
     "click",
-    "requests"
+    "requests",
+    "transformers",
+    "torch",
+    "thefuzz",
+    "python-Levenshtein",
+    "langid"
 ]
 
 [tool.flit.module]
