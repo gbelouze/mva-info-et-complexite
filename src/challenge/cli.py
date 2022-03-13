@@ -1,19 +1,16 @@
 import logging
 from pathlib import Path
 
+import challenge.denoise as denoise_
 import challenge.download as dwn
 import challenge.io as io
 import challenge.train as tr
-import challenge.denoise as denoise_
-
 import click
 from rich import print as rprint
 from rich.logging import RichHandler
 
 FORMAT = "%(message)s"
-logging.basicConfig(
-    level="NOTSET", format=FORMAT, datefmt="[%X]", handlers=[RichHandler()]
-)
+logging.basicConfig(level="NOTSET", format=FORMAT, datefmt="[%X]", handlers=[RichHandler()])
 
 log = logging.getLogger("challenge")
 
@@ -48,8 +45,7 @@ def xy(x, y, out, overwrite):
 @click.argument("out", type=click.Path(path_type=Path), nargs=1)
 @click.option("--overwrite/--no-overwrite", default=False)
 def submit(xys, out, overwrite):
-    """Create a single submission from potentially many xy files.
-    """
+    """Create a single submission from potentially many xy files."""
     if xys:
         io.submit(out, [io.loadxy(xy) for xy in xys], overwrite=overwrite)
 
@@ -69,9 +65,7 @@ def eval(train, test, show_mistakes):
 
 
 @main.command()
-@click.option(
-    "--name", type=click.Choice(list(dwn.all_downloaders.keys()), case_sensitive=False)
-)
+@click.option("--name", type=click.Choice(list(dwn.all_downloaders.keys()), case_sensitive=False))
 @click.option("--all", is_flag=True)
 def download(name, all):
     """Download dataset. See command [info] for more information about the datasets."""
@@ -84,9 +78,7 @@ def download(name, all):
 
 
 @main.command()
-@click.option(
-    "--name", type=click.Choice(list(dwn.all_downloaders.keys()), case_sensitive=False)
-)
+@click.option("--name", type=click.Choice(list(dwn.all_downloaders.keys()), case_sensitive=False))
 @click.option("--all", is_flag=True)
 def info(name, all):
     """Print info about dataset"""
@@ -110,12 +102,12 @@ def denoise(xy, out, overwrite):
     xy = denoise_.remove_non_english(xy)
     io.dumpxy(out, xy, overwrite=overwrite)
 
-@click.option(
-    "--name", type=click.Choice(list(dwn.all_downloaders.keys()), case_sensitive=False)
-)
+
+@main.command()
+@click.option("--name", type=click.Choice(list(dwn.all_downloaders.keys()), case_sensitive=False))
 @click.option("--all", is_flag=True)
 def clean(name, all):
-    """Clean dataset. See command [info] for more information about the datasets."""
+    """Remove downloaded files of a dataset. See command [info] for more information about the datasets."""
     if all:
         for downloader in dwn.all_downloaders.values():
             downloader.clean()

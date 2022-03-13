@@ -1,11 +1,10 @@
 import csv
 import logging
 from pathlib import Path
-
-import pandas as pd  # type: ignore
-import numpy as np
-
 from typing import List
+
+import numpy as np
+import pandas as pd  # type: ignore
 
 log = logging.getLogger("challenge")
 
@@ -77,9 +76,7 @@ def ovewrite_guard(func):
             overwrite = kwargs["overwrite"]
             del kwargs["overwrite"]
         if path.exists() and not overwrite:
-            log.error(
-                f"File already exists [magenta]{repr(path)}[/]", extra={"markup": True}
-            )
+            log.error(f"File already exists [magenta]{repr(path)}[/]", extra={"markup": True})
             raise FileExistsError
         return func(path, *args, **kwargs)
 
@@ -105,9 +102,7 @@ def dumpxy(path: Path, xy: pd.DataFrame, file_kind="xy"):
     df["review"] = xy.x
     df["category"] = xy.y
     df.to_csv(path, sep=",", index=True)
-    log.info(
-        f"Wrote {file_kind} file to [magenta]{repr(path)}[/]", extra={"markup": True}
-    )
+    log.info(f"Wrote {file_kind} file to [magenta]{repr(path)}[/]", extra={"markup": True})
 
 
 def submit(path: Path, xys: List[pd.DataFrame], *args, **kwargs):
