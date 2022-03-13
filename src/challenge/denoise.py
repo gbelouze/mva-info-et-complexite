@@ -1,21 +1,18 @@
-import pandas as pd
-from Levenshtein import distance
-import langid
-
-import re
 import json
+import re
+from logging import getLogger
 from pathlib import Path
 
+import langid
+import pandas as pd
+from Levenshtein import distance
 from rich import print as rprint
-from logging import getLogger
 from tqdm import tqdm
-
 
 log = getLogger("challenge")
 
 
 class Vocab:
-
     def __init__(self, radius=5):
         self.children_keys: set[str] = set()
         self.vocab: dict[str, int] = {}
@@ -78,7 +75,9 @@ class Vocab:
         for name, child in self.children.items():
             if distance(name, word) - self.radius <= best_distance:
                 key, count, d = child.find_closest(word, threshold=best_distance)
-                if key is not None and (d < best_distance or d == best_distance and count > best_count):
+                if key is not None and (
+                    d < best_distance or d == best_distance and count > best_count
+                ):
                     best_word = key
                     best_distance = d
                     best_count = count
@@ -108,20 +107,25 @@ def replace_token(token: str, vocab: Vocab):
 
 def tokenizer_pattern():
     repeated_punctuation = r"[.?!]+"
-    punctuations = fr"(?:[,:;]|{repeated_punctuation})"
+    punctuations = rf"(?:[,:;]|{repeated_punctuation})"
     blanks = r"(?:[ \t]|^|$)"
     left_parenthesis = r"[[{(-]"
     right_parenthesis = r"[\]})-]"
     mid_word = r"[/\-]"
-    return '|'.join([f"(?:{pattern})" for pattern in (
-        f"{punctuations}{blanks}",
-        f"{right_parenthesis}{blanks}",
-        f"{right_parenthesis}{punctuations}",
-        f"{blanks}{left_parenthesis}",
-        f"""{blanks}"|"{blanks}|'""",
-        mid_word,
-        blanks)
-    ])
+    return "|".join(
+        [
+            f"(?:{pattern})"
+            for pattern in (
+                f"{punctuations}{blanks}",
+                f"{right_parenthesis}{blanks}",
+                f"{right_parenthesis}{punctuations}",
+                f"{blanks}{left_parenthesis}",
+                f"""{blanks}"|"{blanks}|'""",
+                mid_word,
+                blanks,
+            )
+        ]
+    )
 
 
 def full_sub(pattern, string, repl):
@@ -130,7 +134,7 @@ def full_sub(pattern, string, repl):
     rprint(tokens)
     for i, token in enumerate(tokens):
         tokens[i] = repl(token)
-    return ''.join(tokens)
+    return "".join(tokens)
 
 
 def correct_sentence_with_vocab(s: str, vocab: Vocab):
@@ -152,7 +156,10 @@ def correct_with_vocab(xy: pd.DataFrame, vocab: Vocab) -> pd.DataFrame:
             xs.append(correct_sentence_with_vocab(s, vocab))
     except KeyboardInterrupt:
         pass
-    return pd.DataFrame({"x": xs, "y": xy.y.iloc[xy.index[range(len(xs))]]}, index=xy.index[range(len(xs))])
+    return pd.DataFrame(
+        {"x": xs, "y": xy.y.iloc[xy.index[range(len(xs))]]},
+        index=xy.index[range(len(xs))],
+    )
 
 
 def remove_non_ascii(baseline: pd.DataFrame) -> pd.DataFrame:
@@ -161,8 +168,21 @@ def remove_non_ascii(baseline: pd.DataFrame) -> pd.DataFrame:
     baseline_ascii = baseline[is_ascii]
 
     # special non ascii case that we want to keep
-    special_case = pd.DataFrame({"x": ["I think this is one of the best films of all times and everybody must realize this movie. I'm a Turkish boy and a big cinema fan. And in this days our cinema industry is highing up. And UZAK is the best Turkish film of last ten years. And maybe one of the best films of all times. Director Nuri Bilge Ceylan is quite amazing, telling story, characters, atmosphere is wonderful. He is a minimalist direcor and tells about routine event family, dreams, expectations, life. Tells about you, tells about me, tells about us. I promise you will find a piece of your body in this move. Cinema life welcomes a new director. He is waiting to realize. I promise you you will love this movie please watch it"],
-                                 "y": [1]})
+    special_case = pd.DataFrame(
+        {
+            "x": [
+                "I think this is one of the best films of all times and everybody must realize this movie. "
+                "I'm a Turkish boy and a big cinema fan. And in this days our cinema industry is highing up. "
+                "And UZAK is the best Turkish film of last ten years. And maybe one of the best films of all times. "
+                "Director Nuri Bilge Ceylan is quite amazing, telling story, characters, atmosphere is wonderful. "
+                "He is a minimalist direcor and tells about routine event family, dreams, expectations, life. "
+                "Tells about you, tells about me, tells about us. I promise you will find a piece of your body "
+                "in this move. Cinema life welcomes a new director. He is waiting to realize. "
+                "I promise you you will love this movie please watch it"
+            ],
+            "y": [1],
+        }
+    )
     baseline_ascii = pd.concat([baseline_ascii, special_case], ignore_index=True)
     log.info(f"Removed {len(baseline) - len(baseline_ascii)} non-ascii entries")
 
@@ -184,10 +204,14 @@ def remove_bad_tokens(xy: pd.DataFrame, bad_tokens_file: Path) -> pd.DataFrame:
         if count > 0:
             if to_token:
                 log.info(
-                    f"Replaced {count} times [yellow]\"{from_token}\"[/] with [yellow]\"{to_token}\"[/]", extra={"markup": True})
+                    f'Replaced {count} times [yellow]"{from_token}"[/] with [yellow]"{to_token}"[/]',
+                    extra={"markup": True},
+                )
             else:
                 log.info(
-                    f"Removed {count} occurrences of [yellow]\"{from_token}\"", extra={"markup": True})
+                    f'Removed {count} occurrences of [yellow]"{from_token}"',
+                    extra={"markup": True},
+                )
     return pd.DataFrame({"x": xs, "y": xy.y}, index=xy.index)
 
 

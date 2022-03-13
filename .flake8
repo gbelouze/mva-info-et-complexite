@@ -1,5 +1,5 @@
 [flake8]
 show-source = True
 builtins = unicode
-max-line-length = 88
+max-line-length = 120
 extend-ignore = E203

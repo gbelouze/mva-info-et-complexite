@@ -1,17 +1,17 @@
 """
 Training script using fastText
 """
+import random
 import tempfile
 from logging import getLogger
 from pathlib import Path
-import random
 
 import fasttext  # type: ignore
 import pandas as pd  # type: ignore
 from challenge.io import dump_input
 from rich import print as rprint
-from rich.table import Table, Column
 from rich.panel import Panel
+from rich.table import Column, Table
 
 log = getLogger("challenge")
 
@@ -64,11 +64,17 @@ def mistakes(model, xy: pd.DataFrame, k: int = 1):
 
     table = Table(
         Column(header="Review", justify="center"),
-        Column(header="Confidence", vertical="middle", justify="center", style="bold blue"),
+        Column(
+            header="Confidence", vertical="middle", justify="center", style="bold blue"
+        ),
         Column(header="Kind", vertical="middle", justify="center", style="red"),
-        title="Mistakes")
+        title="Mistakes",
+    )
 
-    for kind, reviews in [("False positive", false_positives), ("False negative", false_negatives)]:
+    for kind, reviews in [
+        ("False positive", false_positives),
+        ("False negative", false_negatives),
+    ]:
         for review, confidence in reviews:
             table.add_row(Panel(review), f"{100*confidence[0]:.0f}%", kind)
         if kind == "False positive":
