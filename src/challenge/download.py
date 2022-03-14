@@ -109,7 +109,7 @@ class PangLee2005(DatasetDownloader):
         return 5331 * 2
 
 
-class Maas2011(abc.ABC):
+class Maas2011(DatasetDownloader):
 
     url = "https://ai.stanford.edu/~amaas/data/sentiment/aclImdb_v1.tar.gz"
 
