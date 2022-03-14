@@ -6,54 +6,54 @@ from pathlib import Path
 import langid
 import pandas as pd
 from Levenshtein import distance
-from rich import print as rprint
-from tqdm import tqdm
+from rich.progress import track
 
 log = getLogger("challenge")
 
 
 class Vocab:
-    def __init__(self, radius=5):
+    def __init__(self, radius=3):
         self.children_keys: set[str] = set()
-        self.vocab: dict[str, int] = {}
+        self.buffer: dict[str, int] = {}
         self.children: dict[str, dict[str, int]] = {}
         self.radius = radius
 
     def __contains__(self, word):
-        return word in self.children_keys or word in self.vocab
+        return word in self.children_keys
 
     def __getitem__(self, word):
         if word in self:
-            count = self.vocab.get(word, 0)
             for name, child in self.children.items():
                 if distance(word, name) <= self.radius:
-                    count += child[word]
-            return count
+                    # relies on python >= 3.7 dictionnaries respecting insertion order
+                    return child[word]
         raise KeyError
 
-    def add(self, word, count=1):
+    def __len__(self):
+        return len(self.children_keys)
+
+    def add(self, word):
         if word in self.children_keys:
             for name, child in self.children.items():
                 if distance(name, word) <= self.radius:
                     # relies on python >= 3.7 dictionnaries respecting insertion order
-                    child.add(word, count)
+                    child[word] += 1
                     break
-        self.vocab[word] = self.vocab.get(word, 0) + count
+        self.buffer[word] = self.buffer.get(word, 0) + 1
         self.balance()
 
     def balance(self, force=False):
-        if self.radius > 1 and (force or len(self.vocab) > 50_000):
-            for word, count in self.vocab.items():
+        if self.radius > 1 and (force or len(self.buffer) > 100_000):
+            for word, count in self.buffer.items():
                 for key, child in self.children.items():
                     if distance(key, word) <= self.radius:
-                        child.add(word, count)
+                        child[word] = child.get(word, 0) + count
                         break
                 else:
-                    new_vocab = Vocab(radius=self.radius - 1)
-                    new_vocab.add(word, count)
-                    self.children[word] = new_vocab
-            self.children_keys.update(self.vocab.keys())
-            self.vocab = {}
+                    child = {word: count}
+                    self.children[word] = child
+            self.children_keys.update(self.buffer.keys())
+            self.buffer = {}
 
     def find_closest(self, word, threshold=2):
         """Find the entry [key, count] if it exists where
@@ -66,32 +66,25 @@ class Vocab:
             distance: int or undefined if such key does not exist
         """
         best_word, best_distance, best_count = None, threshold, 0
-        for key, count in self.vocab.items():
-            d = distance(key, word)
-            if d < best_distance or d == best_distance and count > best_count:
-                best_word = key
-                best_distance = d
-                best_count = count
         for name, child in self.children.items():
             if distance(name, word) - self.radius <= best_distance:
-                key, count, d = child.find_closest(word, threshold=best_distance)
-                if key is not None and (
-                    d < best_distance or d == best_distance and count > best_count
-                ):
-                    best_word = key
-                    best_distance = d
-                    best_count = count
+                for key, count in child.items():
+                    d = distance(key, word)
+                    if d < best_distance or (d == best_distance and count > best_count):
+                        best_word = key
+                        best_distance = d
+                        best_count = count
         return best_word, best_count, best_distance
 
 
 def vocab(xy: pd.DataFrame) -> Vocab:
     vocab = Vocab()
-    for index, sentence in tqdm(xy.x.iteritems()):
-        for word in re.split(r"[a-zA-Z]+", sentence):
+    for index, sentence in track(xy.x.iteritems(), description="[yellow]Loading[/] vocabulary...", total=len(xy)):
+        for word in re.findall(r"[a-zA-Z]+", sentence):
             word = word.lower()
             vocab.add(word)
     vocab.balance(force=True)
-    log.info("Loaded vocab")
+    log.info(f"[green]Loaded[/] vocabulary with {len(vocab)} entries", extra={"markup": True})
     return vocab
 
 
@@ -109,7 +102,7 @@ def tokenizer_pattern():
     repeated_punctuation = r"[.?!]+"
     punctuations = rf"(?:[,:;]|{repeated_punctuation})"
     blanks = r"(?:[ \t]|^|$)"
-    left_parenthesis = r"[[{(-]"
+    left_parenthesis = r"[\[{(-]"
     right_parenthesis = r"[\]})-]"
     mid_word = r"[/\-]"
     return "|".join(
@@ -131,7 +124,6 @@ def tokenizer_pattern():
 def full_sub(pattern, string, repl):
     """[pattern] must not contain any captured group"""
     tokens = re.split(f"({pattern})", string)
-    rprint(tokens)
     for i, token in enumerate(tokens):
         tokens[i] = repl(token)
     return "".join(tokens)
@@ -142,7 +134,7 @@ def correct_sentence_with_vocab(s: str, vocab: Vocab):
     contains_alpha = re.compile(r"[a-zA-Z]")
 
     def repl(token: str):
-        if len(token) >= 2 and contains_alpha.match(token):
+        if len(token) >= 2 and contains_alpha.search(token):
             return replace_token(token, vocab)
         return token
 
@@ -151,14 +143,16 @@ def correct_sentence_with_vocab(s: str, vocab: Vocab):
 
 def correct_with_vocab(xy: pd.DataFrame, vocab: Vocab) -> pd.DataFrame:
     xs = []
+    indices = []
     try:
-        for index, s in tqdm(xy.x.iteritems()):
+        for index, s in track(xy.x.iteritems(), description="Correcting entries...", total=len(xy)):
             xs.append(correct_sentence_with_vocab(s, vocab))
+            indices.append(index)
     except KeyboardInterrupt:
-        pass
+        log.debug(f"[red]Stopping[/] vocabulary denoising at {len(xs)} entries.", extra={"markup": True})
     return pd.DataFrame(
-        {"x": xs, "y": xy.y.iloc[xy.index[range(len(xs))]]},
-        index=xy.index[range(len(xs))],
+        {"x": xs, "y": xy.y.loc[indices]},
+        index=indices,
     )
 
 

@@ -6,6 +6,7 @@ import challenge.download as dwn
 import challenge.io as io
 import challenge.train as tr
 import click
+import pandas as pd
 from rich import print as rprint
 from rich.logging import RichHandler
 
@@ -94,12 +95,26 @@ def info(name, all):
 @click.argument("xy", type=click.Path(exists=True, path_type=Path))
 @click.argument("out", type=click.Path(path_type=Path))
 @click.option("--overwrite/--no-overwrite", default=False)
-def denoise(xy, out, overwrite):
+@click.option(
+    "--vocabs",
+    type=click.Path(path_type=Path),
+    default=[],
+    multiple=True,
+    help=(
+        "Datasets to use for vocabulary denoising. May take a while, but can be interrupted at any point "
+        "to save a partially denoised dataset."
+    ),
+)
+def denoise(xy, out, overwrite, vocabs):
     """Clean file [XY] and save it to [OUT]"""
     xy = io.loadxy(xy)
     xy = denoise_.remove_non_ascii(xy)
     xy = denoise_.remove_bad_tokens(xy, io.data_dir / "bad_tokens.json")
     xy = denoise_.remove_non_english(xy)
+    if vocabs:
+        vocab_xy = pd.concat([io.loadxy(vocab) for vocab in vocabs], ignore_index=True)
+        vocab = denoise_.vocab(vocab_xy)
+        xy = denoise_.correct_with_vocab(xy, vocab)
     io.dumpxy(out, xy, overwrite=overwrite)
 
 
