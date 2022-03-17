@@ -1,10 +1,12 @@
 import csv
 import logging
+import random
 from pathlib import Path
 from typing import List
 
 import numpy as np
 import pandas as pd  # type: ignore
+from rich.progress import Progress
 
 log = logging.getLogger("challenge")
 
@@ -105,11 +107,31 @@ def dumpxy(path: Path, xy: pd.DataFrame, file_kind="xy"):
     log.info(f"Wrote {file_kind} file to [magenta]{repr(path)}[/]", extra={"markup": True})
 
 
-def submit(path: Path, xys: List[pd.DataFrame], *args, **kwargs):
+def submit(path: Path, xys: List[pd.DataFrame], *args, merge=False, **kwargs):
     xy = pd.concat(xys, ignore_index=True)
     if len(xy) > 20_000:
-        xy = xy.iloc[np.random.choice(np.arange(len(xy)), size=20_000, replace=False)]
-        log.debug("Trimed data to length [cyan bold]20_000[/]", extra={"markup": True})
+        if merge:
+            with Progress() as progress:
+                merge_task = progress.add_task("Merging tables...", total=20_000)
+                merge_count = 0
+
+                positives = list(xy.index[xy.y == 1])
+                negatives = list(xy.index[xy.y == 0])
+                random.shuffle(positives)
+                random.shuffle(negatives)
+                new_xy = pd.DataFrame(columns=["x", "y"])
+                for offset, y_value, indices in [(0, 1, positives), (10_000, 0, negatives)]:
+                    for i in range(10_000):
+                        merge_count += len(range(i, len(indices), 10_000))
+                        s = " ".join(xy.x.loc[index] for index in indices[i : len(indices) : 10_000])
+                        if s:
+                            new_xy.loc[offset + i] = {"x": s, "y": y_value}
+                        progress.update(merge_task, advance=1)
+                xy = new_xy
+                log.debug(f"Merged [cyan bold]{merge_count:_}[/] entries", extra={"markup": True})
+        else:
+            xy = xy.iloc[np.random.choice(np.arange(len(xy)), size=20_000, replace=False)]
+            log.debug("Trimed data to length [cyan bold]20_000[/]", extra={"markup": True})
 
     dumpxy(path, xy, *args, file_kind="submission", **kwargs)
 

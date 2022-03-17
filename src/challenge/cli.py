@@ -45,10 +45,11 @@ def xy(x, y, out, overwrite):
 @click.argument("xys", type=click.Path(exists=True, path_type=Path), nargs=-1)
 @click.argument("out", type=click.Path(path_type=Path), nargs=1)
 @click.option("--overwrite/--no-overwrite", default=False)
-def submit(xys, out, overwrite):
+@click.option("--merge/--no-merge", default=False)
+def submit(xys, out, overwrite, merge):
     """Create a single submission from potentially many xy files."""
     if xys:
-        io.submit(out, [io.loadxy(xy) for xy in xys], overwrite=overwrite)
+        io.submit(out, [io.loadxy(xy) for xy in xys], overwrite=overwrite, merge=merge)
 
 
 @main.command()
