@@ -265,13 +265,14 @@ def detect_bad_labels(xy: pd.DataFrame, model, complementay_models=[]):
 
 
 def dump_bad_labels(path: Path, bad_labels):
+    json = {key: sorted(list(value)) for key, value in bad_labels.items()}
     with open(path, "w+") as f:
         f.write(json.dumps(bad_labels, indent=4))
     log.info(f"Wrote bad labels to [magenta]{repr(path)}[/]", extra={"markup": True})
 
 
 def correct_bad_labels(xy: pd.DataFrame, bad_labels_file: Path) -> pd.DataFrame:
-    xy = pd.copy(xy)
+    xy = xy.copy()
     with open(bad_labels_file) as f:
         bad_labels = json.load(f)
     remove = list(set(bad_labels["unclear"] + bad_labels["outliers"]))
@@ -279,7 +280,7 @@ def correct_bad_labels(xy: pd.DataFrame, bad_labels_file: Path) -> pd.DataFrame:
     xy.drop(index=remove, inplace=True)
     if remove:
         log.info(f"Removed {len(remove)} outliers/unclear entries")
-    xy.y.loc[invert] = 1 - xy.y.loc[invert]
+    xy.loc[invert, "y"] = 1 - xy.y.loc[invert]
     if invert:
         log.info(f"Changed {len(invert)} incorrect labels")
     return xy
