@@ -3,9 +3,11 @@ import re
 from logging import getLogger
 from pathlib import Path
 
+import challenge.train as tr
 import langid
 import pandas as pd
 from Levenshtein import distance
+from rich import print as rprint
 from rich.progress import track
 
 log = getLogger("challenge")
@@ -218,4 +220,65 @@ def remove_non_english(xy: pd.DataFrame) -> pd.DataFrame:
     count = len(xy) - len(keep_indices)
     if count:
         log.info(f"Removed {count} non-english entries")
-    return xy.iloc[keep_indices]
+    return xy.loc[keep_indices]
+
+
+def detect_bad_labels(xy: pd.DataFrame, model, complementay_models=[]):
+    bad_labels = {"by-hand": set(), "automatic": set(), "outliers": set(), "unclear": set()}
+    tr.predict(model, xy)
+    inspect = xy.loc[(xy.y != xy.y_pred) & (xy.confidence > 0.9)]
+    to_inspect_by_hand = []
+    for i, row in inspect.iterrows():
+        complementary_ys = [
+            int(comp_model.predict(row.x.replace("\n", " "))[0][0][-1]) for comp_model in complementay_models
+        ]
+        if all(y == row.y_pred for y in complementary_ys):
+            bad_labels["automatic"].add(i)
+        else:
+            to_inspect_by_hand.append(i)
+    log.info(f"Automatically detected {len(bad_labels['automatic'])} mislabels")
+    rprint(f"Requires {len(to_inspect_by_hand)} manual annotations")
+    try:
+        for count, index in enumerate(to_inspect_by_hand):
+            row = xy.loc[index]
+            rprint(len(to_inspect_by_hand) - count)
+            print(row.x)
+            y_true = int(input("what is the label ? [0 / 1 / 2 unsure / 3 outlier] "))
+            if y_true == 2:
+                bad_labels["unclear"].add(index)
+            elif y_true == 3:
+                bad_labels["outliers"].add(index)
+            elif y_true != row.y:
+                bad_labels["by-hand"].add(index)
+            print()
+    except KeyboardInterrupt:
+        log.warning("Early stopping : could not inspect all entries.")
+
+    if bad_labels["outliers"]:
+        log.info(f"Detected {len(bad_labels['outliers'])} outliers")
+    if bad_labels["unclear"]:
+        log.info(f"Marked {len(bad_labels['unclear'])} entries with an unclear label")
+    if bad_labels["by-hand"]:
+        log.info(f"Detected {len(bad_labels['by-hand'])} mislabels from hand annotations")
+    return bad_labels
+
+
+def dump_bad_labels(path: Path, bad_labels):
+    with open(path, "w+") as f:
+        f.write(json.dumps(bad_labels, indent=4))
+    log.info(f"Wrote bad labels to [magenta]{repr(path)}[/]", extra={"markup": True})
+
+
+def correct_bad_labels(xy: pd.DataFrame, bad_labels_file: Path) -> pd.DataFrame:
+    xy = pd.copy(xy)
+    with open(bad_labels_file) as f:
+        bad_labels = json.load(f)
+    remove = list(set(bad_labels["unclear"] + bad_labels["outliers"]))
+    invert = list(set(bad_labels["automatic"] + bad_labels["by-hand"]))
+    xy.drop(index=remove, inplace=True)
+    if remove:
+        log.info(f"Removed {len(remove)} outliers/unclear entries")
+    xy.y.loc[invert] = 1 - xy.y.loc[invert]
+    if invert:
+        log.info(f"Changed {len(invert)} incorrect labels")
+    return xy

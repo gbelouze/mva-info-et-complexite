@@ -20,9 +20,7 @@ def train(xy: pd.DataFrame):
     with tempfile.NamedTemporaryFile() as input_file:
         dump_input(xy, Path(input_file.name))
         log.info(f"Training on {len(xy)} examples")
-        model = fasttext.train_supervised(
-            input=input_file.name, lr=0.1, epoch=20, wordNgrams=2
-        )
+        model = fasttext.train_supervised(input=input_file.name, lr=0.1, epoch=20, wordNgrams=2)
     log.info("Finished training")
     return model
 
@@ -38,7 +36,7 @@ def test(model, xy: pd.DataFrame):
 def predict(model, xy: pd.DataFrame):
     for i, row in xy.iterrows():
         x = row.x
-        (predicted_label,), proba = model.predict(x)
+        (predicted_label,), proba = model.predict(x.replace("\n", " "))
         y_pred = int(predicted_label[-1])
         xy.loc[i, "y_pred"] = y_pred
         xy.loc[i, "confidence"] = proba[0]
@@ -64,9 +62,7 @@ def mistakes(model, xy: pd.DataFrame, k: int = 1):
 
     table = Table(
         Column(header="Review", justify="center"),
-        Column(
-            header="Confidence", vertical="middle", justify="center", style="bold blue"
-        ),
+        Column(header="Confidence", vertical="middle", justify="center", style="bold blue"),
         Column(header="Kind", vertical="middle", justify="center", style="red"),
         title="Mistakes",
     )
