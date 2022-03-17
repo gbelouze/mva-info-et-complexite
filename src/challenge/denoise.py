@@ -177,9 +177,10 @@ def remove_non_ascii(baseline: pd.DataFrame) -> pd.DataFrame:
                 "I promise you you will love this movie please watch it"
             ],
             "y": [1],
-        }
+        },
+        index=[8092],
     )
-    baseline_ascii = pd.concat([baseline_ascii, special_case], ignore_index=True)
+    baseline_ascii = pd.concat([baseline_ascii, special_case])
     log.info(f"Removed {len(baseline) - len(baseline_ascii)} non-ascii entries")
 
     return baseline_ascii
